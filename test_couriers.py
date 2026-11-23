@@ -2,9 +2,13 @@
 Тесты для процедурных хелперов из helpers.py.
 Необъодимо переписать их под использование класса CourierAPIClient.
 """
+import os
 import pytest
 import requests
-from helpers import get_courier_by_id, create_courier, delete_courier
+from dotenv import load_dotenv
+from api_client import CourierAPIClient
+
+load_dotenv()
 
 
 @pytest.fixture
@@ -16,29 +20,35 @@ def new_courier_data():
         "phone": "+79997654321"
     }
 
+@pytest.fixture
+def client():
+    """Фикстура, возвращающая экземпляр CourierAPIClient."""
+    base_url = os.getenv("API_BASE_URL")
+    auth_token = os.getenv("AUTH_TOKEN")
+    return CourierAPIClient(base_url=base_url, auth_token=auth_token)
 
 @pytest.mark.usefixtures("fake_server")
-class TestCourierHelpers:
-    """Тесты для процедурных хелперов."""
+class TestCourierClient:
+    """Тесты для класса CourierAPIClient."""
 
-    def test_get_courier_by_id(self):
+    def test_get_courier_by_id(self, client):
         """Получение курьера с id=1 (зашит в fake_api)."""
-        courier = get_courier_by_id(1)
+        courier =  client.get_courier_by_id(1)
         assert courier["id"] == 1
         assert courier["first_name"] == "Иван"
 
-    def test_create_courier(self, new_courier_data):
+    def test_create_courier(self, client, new_courier_data):
         """Создание нового курьера."""
-        result = create_courier(new_courier_data)
+        result = client.create_courier(new_courier_data)
         assert "id" in result
         assert result["first_name"] == "Мария"
 
-    def test_get_nonexistent_courier_raises(self):
+    def test_get_nonexistent_courier_raises(self, client):
         """Запрос несуществующего курьера вызывает ошибку 404."""
         with pytest.raises(requests.exceptions.HTTPError):
-            get_courier_by_id(99999)
+            client.get_courier_by_id(99999)
 
-    def test_delete_courier(self):
+    def test_delete_courier(self, client):
         """Удаление курьера с id=2 (зашит в fake_api)."""
-        result = delete_courier(2)
+        result = client.delete_courier(2)
         assert result == {"status": "deleted"}
